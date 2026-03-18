@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>CryptoVault — Wallet & Cashout</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#06090f;--bg2:#0d1420;--bg3:#131d2e;--bg4:#192438;--border:#1c2d44;--border2:#243752;--gold:#f5a623;--green:#00e5a0;--red:#ff3d6b;--blue:#4a9eff;--text:#dde8f5;--sub:#6b8aaa;--muted:#2e4a6a;--r:14px;--rs:9px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;}
+h1,h2,h3,.logo,.num{font-family:'Syne',sans-serif;}
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:var(--border2);}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 70% 50% at 15% 5%,rgba(0,229,160,.05),transparent),radial-gradient(ellipse 50% 40% at 85% 85%,rgba(245,166,35,.05),transparent);pointer-events:none;z-index:0;}
+.page{position:relative;z-index:1;min-height:100vh;}
+/* AUTH */
+.auth-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:20px 16px;}
+.brand{text-align:center;margin-bottom:36px;}
+.brand-mark{width:60px;height:60px;background:linear-gradient(135deg,#f5a623,#ff6b00);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin:0 auto 12px;box-shadow:0 8px 24px rgba(245,166,35,.25);}
+.brand h1{font-size:1.7rem;letter-spacing:-.04em;margin-bottom:4px;}
+.brand p{color:var(--sub);font-size:0.82rem;}
+.auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:24px;width:100%;max-width:400px;}
+.auth-card h2{font-size:1rem;margin-bottom:18px;font-family:'Syne',sans-serif;}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:0.68rem;color:var(--sub);text-transform:uppercase;letter-spacing:.1em;font-weight:600;margin-bottom:5px;}
+.field input,.field select{width:100%;background:var(--bg3);border:1.5px solid var(--border2);border-radius:9px;padding:11px 13px;color:var(--text);font-family:'Outfit',sans-serif;font-size:0.88rem;outline:none;transition:border-color .15s;}
+.field input:focus,.field select:focus{border-color:var(--gold);}
+.btn{display:block;width:100%;padding:13px;background:var(--gold);color:#000;border:none;border-radius:var(--rs);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:'Outfit',sans-serif;transition:all .15s;}
+.btn:hover{opacity:.9;}
+.btn:active{transform:scale(.98);}
+.btn-ghost{background:var(--bg3);color:var(--text);border:1.5px solid var(--border2);}
+.btn-green{background:linear-gradient(135deg,#00e5a0,#00b87a);color:#000;}
+.btn-red{background:var(--red);color:#fff;}
+.btn-sm{padding:8px 14px;font-size:0.8rem;width:auto;display:inline-block;}
+.err{color:var(--red);font-size:0.75rem;margin:6px 0;min-height:18px;}
+.link{color:var(--gold);cursor:pointer;font-weight:600;}
+.divider{border:none;border-top:1px solid var(--border);margin:12px 0;}
+/* APP */
+#app{display:none;flex-direction:column;min-height:100vh;}
+.topbar{background:rgba(13,20,32,.95);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;}
+.topbar-logo{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;}
+.topbar-logo span{color:var(--gold);}
+.avatar{width:32px;height:32px;background:linear-gradient(135deg,var(--gold),#ff6b00);color:#000;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.8rem;cursor:pointer;}
+.badge{background:rgba(0,229,160,.15);color:var(--green);font-size:0.62rem;font-weight:700;padding:3px 9px;border-radius:20px;border:1px solid rgba(0,229,160,.2);}
+.badge-admin{background:rgba(245,166,35,.15);color:var(--gold);border-color:rgba(245,166,35,.2);}
+.botnav{position:fixed;bottom:0;left:0;right:0;background:rgba(13,20,32,.98);backdrop-filter:blur(12px);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:env(safe-area-inset-bottom,0);}
+.nb{flex:1;padding:10px 4px 8px;background:none;border:none;cursor:pointer;text-align:center;color:var(--muted);font-family:'Outfit',sans-serif;font-size:0.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.06em;transition:color .15s;}
+.nb.on{color:var(--gold);}
+.nb-icon{font-size:1.25rem;display:block;margin-bottom:2px;}
+.content{padding:16px 15px 100px;max-width:460px;margin:0 auto;}
+/* CARDS */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:12px;}
+.card-label{font-size:0.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:700;margin-bottom:5px;}
+/* BALANCE */
+.bal-hero{background:linear-gradient(135deg,#0d1e36,#0f2540);border-radius:18px;padding:22px;margin-bottom:14px;text-align:center;border:1px solid rgba(245,166,35,.12);position:relative;overflow:hidden;}
+.bal-hero::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:radial-gradient(circle,rgba(245,166,35,.12),transparent 70%);pointer-events:none;}
+/* COIN CARD */
+.coin-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:13px;display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+/* QR */
+.qr-wrap{background:#fff;border-radius:12px;padding:10px;display:inline-flex;margin:0 auto;}
+/* METHODS */
+.method-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.method-btn{background:var(--bg3);border:2px solid var(--border2);border-radius:12px;padding:12px 6px;text-align:center;cursor:pointer;transition:all .15s;}
+.method-btn:hover{border-color:var(--border);}
+.method-btn.active{border-color:var(--gold);background:rgba(245,166,35,.08);}
+.method-logo{height:28px;width:auto;display:block;margin:0 auto 5px;object-fit:contain;}
+.method-logo-svg{width:32px;height:28px;display:block;margin:0 auto 5px;}
+.method-icon{font-size:1.8rem;margin-bottom:5px;}
+.method-name{font-size:0.82rem;font-weight:700;}
+.method-sub{font-size:0.65rem;color:var(--sub);margin-top:2px;}
+/* STATUS PILLS */
+.pill{display:inline-flex;align-items:center;font-size:0.65rem;font-weight:700;padding:3px 9px;border-radius:20px;}
+.pill-pending{background:rgba(245,166,35,.12);color:var(--gold);border:1px solid rgba(245,166,35,.2);}
+.pill-paid{background:rgba(0,229,160,.1);color:var(--green);border:1px solid rgba(0,229,160,.2);}
+.pill-rejected{background:rgba(255,61,107,.1);color:var(--red);border:1px solid rgba(255,61,107,.2);}
+/* ADMIN */
+.admin-row{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px;}
+/* MODAL */
+.modal-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;padding:20px;overflow-y:auto;align-items:center;justify-content:center;}
+.modal-ov.open{display:flex;}
+.modal-box{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:22px;width:100%;max-width:400px;}
+.modal-box h3{font-size:1rem;margin-bottom:4px;font-family:'Syne',sans-serif;}
+.modal-sub{font-size:0.77rem;color:var(--sub);margin-bottom:16px;}
+/* TOAST */
+#toast{position:fixed;bottom:85px;left:50%;transform:translateX(-50%) translateY(12px);background:var(--bg4);border:1px solid var(--border2);border-radius:24px;padding:9px 20px;font-size:0.8rem;font-weight:600;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap;pointer-events:none;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+/* SCREENS */
+.screen{display:none;}
+.screen.active{display:block;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+.fade-up{animation:fadeUp .35s ease forwards;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 1.4s infinite;}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- AUTH -->
+
+<div id="screenAuth">
+<div class="auth-wrap">
+  <div class="brand fade-up">
+    <div class="brand-mark">₿</div>
+    <h1>Crypto<span style="color:var(--gold)">Vault</span></h1>
+    <p>Cash out your TradePro profits</p>
+  </div>
+  <div class="auth-card fade-up" style="animation-delay:.1s">
+    <h2 id="authTitle">Sign In with TradePro</h2>
+    <p style="font-size:0.77rem;color:var(--sub);margin-bottom:16px;line-height:1.6;">Use your <strong style="color:var(--gold)">TradePro email &amp; password</strong> to access your wallet.</p>
+    <div class="field"><label>TradePro Email</label><input type="email" id="authEmail" placeholder="you@email.com" onkeydown="if(event.key==='Enter')doAuth()"></div>
+    <div class="field"><label>TradePro Password</label><input type="password" id="authPass" placeholder="Your TradePro password" onkeydown="if(event.key==='Enter')doAuth()"></div>
+    <div id="regFields" style="display:none">
+      <div class="field"><label>Full Name</label><input type="text" id="authName" placeholder="John Smith"></div>
+    </div>
+    <div class="err" id="authErr"></div>
+    <button class="btn" style="margin-bottom:12px" onclick="doAuth()" id="authBtn">Sign In</button>
+    <p style="text-align:center;font-size:0.77rem;color:var(--muted)" id="authToggle">
+      Don't have an account? <a href="https://trade-pro.us" style="color:var(--gold);font-weight:600;text-decoration:none">Register on TradePro →</a>
+    </p>
+    <hr class="divider">
+    <div style="text-align:center">
+      <span style="font-size:0.75rem;color:var(--muted)">Admin? </span>
+      <span class="link" style="font-size:0.75rem" onclick="toggleAdminArea()">Click here</span>
+    </div>
+    <div id="adminArea" style="display:none;margin-top:12px">
+      <div class="field"><label>Admin Password</label><input type="password" id="adminPassInput" placeholder="Admin password" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+      <div class="err" id="adminAuthErr"></div>
+      <button class="btn" onclick="doAdminLogin()">Admin Login</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- APP -->
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">Crypto<span>Vault</span></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="badge" id="roleBadge">Student</span>
+      <div class="avatar" id="userAv" onclick="doLogout()" title="Logout">?</div>
+    </div>
+  </div>
+
+  <!-- WALLET -->
+
+  <div class="screen active" id="scWallet">
+    <div class="content">
+      <div class="bal-hero fade-up">
+        <div style="font-size:0.65rem;color:var(--sub);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px;font-weight:600">Total Crypto Balance</div>
+        <div style="font-size:0.8rem;color:var(--gold);font-weight:600;margin-bottom:8px;" id="walletWelcome">Welcome back</div>
+        <div class="num" id="totalBal" style="font-size:2.4rem;font-weight:800;color:var(--gold);margin-bottom:4px">$0.00</div>
+        <div id="btcBal" style="font-size:0.8rem;color:var(--sub)">≈ 0.00000000 BTC</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px">
+          <span class="live-dot"></span>
+          <span style="font-size:0.7rem;color:var(--green)">Synced with TradePro</span>
+        </div>
+      </div>
+
+```
+  <div class="coin-card">
+    <div style="width:42px;height:42px;border-radius:50%;background:rgba(247,147,26,.15);display:flex;align-items:center;justify-content:center;font-size:1.2rem;font-weight:800;color:#f7931a;flex-shrink:0">₿</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:0.9rem">Bitcoin</div>
+      <div style="font-size:0.72rem;color:var(--sub)">BTC · Live from TradePro</div>
+    </div>
+    <div style="text-align:right">
+      <div class="num" id="coinBTCBal" style="font-weight:800;font-size:0.95rem;color:var(--green)">$0.00</div>
+      <div id="coinBTCQty" style="font-size:0.68rem;color:var(--sub)">0.00000 BTC</div>
+    </div>
+  </div>
+
+  <div class="card" style="text-align:center">
+    <div class="card-label" style="margin-bottom:10px">Your BTC Deposit Address</div>
+    <div id="qrDiv" class="qr-wrap" style="margin-bottom:10px"></div>
+    <div id="addrText" style="font-family:monospace;font-size:0.7rem;color:var(--sub);word-break:break-all;padding:0 8px;line-height:1.6;margin-bottom:10px"></div>
+    <button class="btn-sm btn btn-ghost" onclick="copyBTCAddr()">📋 Copy Address</button>
+    <p style="font-size:0.72rem;color:var(--muted);margin-top:10px;line-height:1.6">Admin sends BTC here after approving your TradePro withdrawal. Balance updates automatically.</p>
+  </div>
+
+  <button class="btn btn-green" onclick="openSell()" style="font-size:1rem;padding:15px;margin-bottom:12px">💸 Sell &amp; Cash Out</button>
+
+  <div class="card" style="background:rgba(74,158,255,.04);border-color:rgba(74,158,255,.15)">
+    <div style="font-size:0.8rem;font-weight:700;color:var(--blue);margin-bottom:7px">ℹ How it works</div>
+    <div style="font-size:0.77rem;color:var(--sub);line-height:1.8">
+      1. Make profit on TradePro<br>
+      2. Request withdrawal → admin approves → BTC arrives here<br>
+      3. Tap <strong style="color:var(--green)">Sell &amp; Cash Out</strong><br>
+      4. Choose PayPal or Cash App → submit request<br>
+      5. Admin sends payment → balance updated ✅
+    </div>
+  </div>
+</div>
+```
+
+  </div>
+
+  <!-- HISTORY -->
+
+  <div class="screen" id="scHistory">
+    <div class="content">
+      <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;margin-bottom:14px">Cashout History</div>
+      <div id="histDiv"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+
+  <div class="screen" id="scAdmin">
+    <div class="content" style="max-width:600px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+        <div style="font-family:'Syne',sans-serif;font-size:1rem;font-weight:800">Cashout Requests</div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <span id="pendBadge" style="font-size:0.72rem;color:var(--gold);font-weight:700"></span>
+          <button class="btn btn-ghost btn-sm" onclick="loadAdmin()">↻</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:14px">
+        <button class="nb on" id="tab_all" onclick="filterAdmin('all')" style="font-size:0.72rem;padding:8px 14px;border-bottom:2px solid var(--gold);color:var(--gold)">All</button>
+        <button class="nb" id="tab_pending" onclick="filterAdmin('pending')" style="font-size:0.72rem;padding:8px 14px;border-bottom:2px solid transparent">Pending</button>
+        <button class="nb" id="tab_paid" onclick="filterAdmin('paid')" style="font-size:0.72rem;padding:8px 14px;border-bottom:2px solid transparent">Paid</button>
+        <button class="nb" id="tab_rejected" onclick="filterAdmin('rejected')" style="font-size:0.72rem;padding:8px 14px;border-bottom:2px solid transparent">Rejected</button>
+      </div>
+      <div id="adminDiv"></div>
+    </div>
+  </div>
+
+  <nav class="botnav">
+    <button class="nb on" id="nb_wallet" onclick="goScreen('wallet')"><span class="nb-icon">💳</span>Wallet</button>
+    <button class="nb" id="nb_history" onclick="goScreen('history')"><span class="nb-icon">📋</span>History</button>
+    <button class="nb" id="nb_admin" onclick="goScreen('admin')" style="display:none"><span class="nb-icon">🛡️</span>Admin</button>
+  </nav>
+</div>
+
+<!-- SELL MODAL -->
+
+<div class="modal-ov" id="sellModal">
+  <div class="modal-box">
+    <h3>💸 Sell &amp; Cash Out</h3>
+    <p class="modal-sub" id="sellSub">Choose your payout method</p>
+    <div class="method-grid">
+      <!-- PayPal -->
+      <div class="method-btn active" id="m_paypal" onclick="selMethod('paypal')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M26.5 4.5C25.2 2.8 22.9 2 19.9 2H10.3C9.6 2 9 2.5 8.9 3.2L5 24.5C4.9 25 5.3 25.5 5.8 25.5H11.2L12.6 17.2L12.5 17.6C12.6 16.9 13.2 16.4 13.9 16.4H16.8C22.3 16.4 26.6 14.1 27.9 7.6C27.9 7.4 28 7.1 28 6.9C27.7 5.9 27.2 5.1 26.5 4.5Z" fill="#003087"/>
+          <path d="M26.5 4.5C25.2 2.8 22.9 2 19.9 2H10.3C9.6 2 9 2.5 8.9 3.2L5 24.5C4.9 25 5.3 25.5 5.8 25.5H11.2L12.6 17.2C12.7 16.5 13.3 16 14 16H16.9C22.4 16 26.7 13.7 28 7.2C28 7 28 6.8 28 6.6C27.7 5.9 27.2 5.1 26.5 4.5Z" fill="#0070E0"/>
+          <path d="M13.5 7.3C13.6 6.8 13.9 6.5 14.3 6.3C14.5 6.2 14.8 6.2 15 6.2H21.8C22.6 6.2 23.3 6.3 24 6.4C24.2 6.4 24.4 6.5 24.6 6.5C24.8 6.6 25 6.6 25.2 6.7C25.3 6.8 25.5 6.8 25.6 6.9C26.1 7.2 26.4 7.6 26.5 8.1C25.2 14.6 20.9 16.9 15.4 16.9H12.5C11.8 16.9 11.2 17.4 11.1 18.1L9.5 27.8H6.5C6 27.8 5.7 27.3 5.8 26.8L9.6 5.5C9.7 5 10.2 4.5 10.7 4.5H19.5C23.2 4.5 25.9 5.5 26.5 8.1C26.4 7.6 26.1 7.2 25.6 6.9C25.5 6.8 25.3 6.8 25.2 6.7C25 6.6 24.8 6.6 24.6 6.5C24.4 6.5 24.2 6.4 24 6.4C23.3 6.3 22.6 6.2 21.8 6.2H15C14.8 6.2 14.5 6.2 14.3 6.3C13.9 6.5 13.6 6.8 13.5 7.3Z" fill="#003087"/>
+        </svg>
+        <div class="method-name">PayPal</div>
+        <div class="method-sub">Worldwide</div>
+      </div>
+      <!-- Cash App -->
+      <div class="method-btn" id="m_cashapp" onclick="selMethod('cashapp')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none">
+          <rect x="4" y="2" width="24" height="24" rx="6" fill="#00D632"/>
+          <path d="M20.5 9.5C19.8 8.9 18.9 8.5 17.8 8.4L18 7H16.2L16 8.4C14.2 8.7 13 9.8 13 11.3C13 13 14.3 13.8 16.1 14.3C17.7 14.7 18.2 15.1 18.2 15.7C18.2 16.4 17.5 16.8 16.5 16.8C15.4 16.8 14.4 16.3 13.7 15.6L12.5 17.1C13.3 17.8 14.3 18.3 15.5 18.5L15.3 20H17.1L17.3 18.5C19.2 18.2 20.5 17.1 20.5 15.5C20.5 13.7 19.1 12.9 17.2 12.4C15.8 12 15.3 11.6 15.3 11C15.3 10.4 15.9 10 16.8 10C17.7 10 18.6 10.4 19.2 11L20.5 9.5Z" fill="white"/>
+        </svg>
+        <div class="method-name">Cash App</div>
+        <div class="method-sub">US · Instant</div>
+      </div>
+      <!-- Bybit -->
+      <div class="method-btn" id="m_bybit" onclick="selMethod('bybit')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none">
+          <rect x="2" y="3" width="28" height="22" rx="5" fill="#F7A600"/>
+          <text x="16" y="19" text-anchor="middle" font-family="Arial Black, sans-serif" font-weight="900" font-size="10" fill="#1A1A1A">bybit</text>
+        </svg>
+        <div class="method-name">Bybit</div>
+        <div class="method-sub">Crypto</div>
+      </div>
+      <!-- Binance -->
+      <div class="method-btn" id="m_binance" onclick="selMethod('binance')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none">
+          <rect x="2" y="3" width="28" height="22" rx="5" fill="#F0B90B"/>
+          <path d="M10.5 14L13 11.5L15.5 14L13 16.5L10.5 14Z" fill="#1A1A1A"/>
+          <path d="M16 8.5L18.5 11L16 13.5L13.5 11L16 8.5Z" fill="#1A1A1A"/>
+          <path d="M21.5 14L19 11.5L16.5 14L19 16.5L21.5 14Z" fill="#1A1A1A"/>
+          <path d="M16 19.5L18.5 17L16 14.5L13.5 17L16 19.5Z" fill="#1A1A1A"/>
+          <path d="M16 11.5L17.5 13L16 14.5L14.5 13L16 11.5Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="method-name">Binance</div>
+        <div class="method-sub">Crypto</div>
+      </div>
+      <!-- Bank Transfer -->
+      <div class="method-btn" id="m_bank" onclick="selMethod('bank')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none">
+          <rect x="2" y="3" width="28" height="22" rx="5" fill="#1e3a5f"/>
+          <rect x="7" y="13" width="3" height="8" fill="#60a5fa"/>
+          <rect x="11" y="11" width="3" height="10" fill="#60a5fa"/>
+          <rect x="15" y="9" width="3" height="12" fill="#60a5fa"/>
+          <rect x="19" y="12" width="3" height="9" fill="#60a5fa"/>
+          <rect x="6" y="21" width="17" height="2" rx="1" fill="#93c5fd"/>
+          <polygon points="14.5,5 16,3.5 17.5,5 23,7 9,7" fill="#93c5fd"/>
+        </svg>
+        <div class="method-name">Bank</div>
+        <div class="method-sub">Wire Transfer</div>
+      </div>
+      <!-- Wise -->
+      <div class="method-btn" id="m_wise" onclick="selMethod('wise')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none">
+          <rect x="2" y="3" width="28" height="22" rx="5" fill="#9FE870"/>
+          <path d="M8 10L11.5 18L13.5 13L15.5 18L19 10H17L15.5 14.5L13.5 10L11.5 14.5L10 10H8Z" fill="#163300"/>
+          <path d="M19 10L22 18L24 10H22.5L21 15L20.5 10H19Z" fill="#163300"/>
+        </svg>
+        <div class="method-name">Wise</div>
+        <div class="method-sub">International</div>
+      </div>
+      <!-- BTC Transfer -->
+      <div class="method-btn" id="m_btc" onclick="selMethod('btc')">
+        <svg class="method-logo-svg" viewBox="0 0 32 28" fill="none">
+          <rect x="2" y="3" width="28" height="22" rx="5" fill="#1a1a1a"/>
+          <circle cx="16" cy="14" r="8" fill="#f7931a"/>
+          <path d="M18.5 11.5C18.5 10.4 17.6 10 16.5 10H14V13H16.5C17.6 13 18.5 12.6 18.5 11.5ZM14 14.5V18H16.8C18 18 19 17.5 19 16.2C19 15 18 14.5 16.8 14.5H14Z" fill="white"/>
+          <path d="M15 9V10H16V9H15ZM15 18V19H16V18H15Z" fill="white"/>
+        </svg>
+        <div class="method-name">BTC Transfer</div>
+        <div class="method-sub">Bitcoin Address</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Amount (USD)</label>
+      <input type="number" id="sellAmt" placeholder="Min. $5,000" oninput="calcPreview()">
+      <div style="font-size:0.7rem;color:var(--muted);margin-top:5px;">Minimum $5,000 · 20% processing fee applies · Per TradePro Terms</div>
+    </div>
+    <div id="prevBox" style="display:none;background:var(--bg3);border-radius:10px;padding:11px;margin-bottom:12px;border:1px solid var(--border2);font-size:0.78rem">
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--sub)">BTC to sell</span><span id="pBTC" style="font-weight:700"></span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--red);font-weight:600">Processing fee (20%)</span><span id="pFee" style="font-weight:700;color:var(--red)"></span></div>
+      <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px"><span style="color:var(--sub)">You receive</span><span id="pNet" style="font-weight:800;color:var(--green);font-size:0.88rem"></span></div>
+    </div>
+    <!-- Standard single field (PayPal, CashApp, Binance, Bank, Wise) -->
+    <div id="singleField" class="field">
+      <label id="handleLabel">PayPal Email</label>
+      <input type="text" id="handleInput" placeholder="you@paypal.com">
+      <div id="methodNote" style="font-size:0.7rem;color:var(--sub);margin-top:5px;">Worldwide · PayPal account required</div>
+    </div>
+    <!-- Bybit extra fields (Email + BTC address) -->
+    <div id="bybitFields" style="display:none">
+      <div class="field">
+        <label>Bybit Email</label>
+        <input type="email" id="bybitEmail" placeholder="your-bybit@email.com">
+      </div>
+      <div class="field">
+        <label>Bybit BTC Deposit Address</label>
+        <input type="text" id="bybitBTC" placeholder="bc1q... or 1... (from Bybit deposit)">
+        <div style="font-size:0.7rem;color:var(--sub);margin-top:5px;">Get this from Bybit → Assets → Deposit → BTC</div>
+      </div>
+    </div>
+    <!-- BTC-to-BTC transfer field -->
+    <div id="btcFields" style="display:none">
+      <div class="field">
+        <label>Your Bitcoin Address</label>
+        <input type="text" id="btcDestAddr" placeholder="bc1q... or 1... or 3...">
+        <div style="font-size:0.7rem;color:var(--sub);margin-top:5px;">⚡ Direct BTC transfer · Network fees apply · Double-check address carefully</div>
+      </div>
+    </div>
+    <div class="err" id="sellErr"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-ghost" style="flex:1;padding:11px" onclick="closeSell()">Cancel</button>
+      <button class="btn btn-green" style="flex:1;padding:11px" onclick="submitCashout()">Submit</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ══ FIREBASE — SAME AS TRADEPRO ══ */
+var _db=null,_fb=false;
+(function(){
+  try{
+    firebase.initializeApp({
+      apiKey:'AIzaSyAlluzk2ze79YTVPjihm49nSx_dm2io_e0',
+      authDomain:'tradpro-30ad8.firebaseapp.com',
+      databaseURL:'https://tradpro-30ad8-default-rtdb.firebaseio.com',
+      projectId:'tradpro-30ad8',
+      storageBucket:'tradpro-30ad8.appspot.com',
+      messagingSenderId:'000000000000',
+      appId:'1:000000000000:web:cv000000'
+    });
+    _db=firebase.database();_fb=true;
+  }catch(e){console.warn('Firebase offline, using localStorage');}
+})();
+
+/* ══ GLOBALS ══ */
+var _sess=null,_isAdmin=false,_authMode='login';
+var _method='paypal',_adminFilter='all',_allReqs=[];
+var ADMIN_PASS='vault2024';
+var BTC_PRICE=67240;
+var BTC_ADDR='1D15puXcsymAkfhdVCEuZac1zoWA7xa4N2';
+
+/* ══ STORAGE ══ */
+function fbk(k){return k.replace(/\./g,'|DOT|').replace(/#/g,'|HASH|');}
+function ls_save(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}}
+function ls_load(k){try{return JSON.parse(localStorage.getItem(k)||'null');}catch(e){return null;}}
+
+function cvSave(k,v){
+  ls_save('cv_'+k,v);
+  if(_fb&&_db)_db.ref('cryptovault/'+fbk(k)).set(v).catch(function(){});
+}
+function cvLoad(k,cb){
+  var local=ls_load('cv_'+k);
+  if(_fb&&_db){
+    _db.ref('cryptovault/'+fbk(k)).once('value').then(function(s){
+      var d=s.val();
+      if(d){ls_save('cv_'+k,d);cb(d);}else cb(local);
+    }).catch(function(){cb(local);});
+  }else cb(local);
+}
+
+/* Read TradePro approved withdrawals for balance */
+function getTPBalance(email,cb){
+  /* PRIMARY SOURCE: Read student's actual current Main Account balance from TradePro */
+  /* This is tp_u_<email>.cash — the real available balance */
+
+  /* Try Firebase first (most accurate) */
+  if(_fb&&_db){
+    _db.ref('tp/'+fbk('tp_u_'+email)).once('value').then(function(s){
+      var u=s.val();
+      if(u&&u.cash!==undefined){
+        var bal=Math.max(0,u.cash||0);
+        cb(bal);
+        return;
+      }
+      /* Fallback to localStorage */
+      var localU=ls_load('tp_u_'+email);
+      if(localU&&localU.cash!==undefined){cb(Math.max(0,localU.cash||0));return;}
+      cb(0);
+    }).catch(function(){
+      /* Firebase error — use localStorage */
+      var localU=ls_load('tp_u_'+email);
+      if(localU&&localU.cash!==undefined){cb(Math.max(0,localU.cash||0));return;}
+      cb(0);
+    });
+  }else{
+    /* Offline — use localStorage */
+    var localU=ls_load('tp_u_'+email);
+    if(localU&&localU.cash!==undefined){cb(Math.max(0,localU.cash||0));return;}
+    cb(0);
+  }
+}
+
+/* ══ AUTH ══ */
+function toggleAuth(){
+  _authMode=_authMode==='login'?'register':'login';
+  var r=_authMode==='register';
+  gel('authTitle').textContent=r?'Create Account':'Sign In';
+  gel('authBtn').textContent=r?'Create Account':'Sign In';
+  gel('regFields').style.display=r?'block':'none';
+  gel('authToggle').innerHTML=r
+    ?'Already have an account? <span class="link" onclick="toggleAuth()">Sign In</span>'
+    :'Don\'t have an account? <span class="link" onclick="toggleAuth()">Register</span>';
+  gel('authErr').textContent='';
+}
+function toggleAdminArea(){var a=gel('adminArea');a.style.display=a.style.display==='none'?'block':'none';}
+function gel(id){return document.getElementById(id);}
+function doAuth(){
+  var email=gel('authEmail').value.trim().toLowerCase();
+  var pass=gel('authPass').value;
+  var err=gel('authErr');err.textContent='';
+  if(!email||!pass){err.textContent='Fill all fields.';return;}
+  err.textContent='Signing in...';
+  /* Step 1: Check TradePro localStorage */
+  var tpu=ls_load('tp_u_'+email);
+  if(tpu){
+    /* TradePro stores password as plain text in tp_u_ */
+    if(tpu.pass===pass||!tpu.pass){
+      _sess={email:email,name:tpu.name||email};launch();return;
+    }
+  }
+  /* Step 2: Check Firebase TradePro user */
+  if(_fb&&_db){
+    _db.ref('tp/'+fbk('tp_u_'+email)).once('value').then(function(s){
+      var d=s.val();
+      if(d){
+        /* TradePro users — verify by checking pass field */
+        if(d.pass===pass||!d.pass){
+          _sess={email:email,name:d.name||email};
+          err.textContent='';
+          launch();
+        }else{
+          err.textContent='Wrong password.';
+        }
+      }else{
+        err.textContent='No TradePro account found for this email. Please register on TradePro first.';
+      }
+    }).catch(function(){
+      /* Firebase offline - try local one more time without password check */
+      if(tpu){_sess={email:email,name:tpu.name||email};err.textContent='';launch();}
+      else err.textContent='Connection error. Make sure you have a TradePro account.';
+    });
+  }else{
+    if(tpu){_sess={email:email,name:tpu.name||email};err.textContent='';launch();}
+    else err.textContent='No TradePro account found. Please register on TradePro first.';
+  }
+}
+function doAdminLogin(){
+  var pass=gel('adminPassInput').value;
+  var err=gel('adminAuthErr');err.textContent='';
+  if(pass!==ADMIN_PASS){err.textContent='Wrong password.';return;}
+  _sess={email:'admin@cv',name:'Admin'};_isAdmin=true;launch();
+}
+function doLogout(){
+  _sess=null;_isAdmin=false;
+  gel('app').style.display='none';
+  gel('screenAuth').style.display='';
+}
+
+/* ══ LAUNCH ══ */
+function launch(){
+  gel('screenAuth').style.display='none';
+  gel('app').style.display='flex';
+  gel('app').style.flexDirection='column';
+  gel('userAv').textContent=(_sess.name||'?')[0].toUpperCase();
+  var rb=gel('roleBadge');
+  rb.textContent=_isAdmin?'Admin':(_sess.name||'Student').split(' ')[0];
+  rb.className='badge'+(_isAdmin?' badge-admin':'');
+  gel('nb_admin').style.display=_isAdmin?'flex':'none';
+  if(_isAdmin)goScreen('admin');
+  else goScreen('wallet');
+}
+
+/* ══ NAV ══ */
+var _cur='wallet';
+function goScreen(name){
+  _cur=name;
+  ['wallet','history','admin'].forEach(function(s){
+    var k=s[0].toUpperCase()+s.slice(1);
+    var sc=gel('sc'+k),nb=gel('nb_'+s);
+    if(sc)sc.className='screen'+(s===name?' active':'');
+    if(nb)nb.className='nb'+(s===name?' on':'');
+  });
+  if(name==='wallet')loadWallet();
+  if(name==='history')loadHistory();
+  if(name==='admin')loadAdmin();
+}
+
+/* ══ WALLET ══ */
+function loadWallet(){
+  if(!_sess||_isAdmin)return;
+  /* Set welcome name */
+  var ww=gel('walletWelcome');
+  if(ww)ww.textContent='Welcome back, '+(_sess.name||'').split(' ')[0]+' 👋';
+  getTPBalance(_sess.email,function(bal){updateBal(bal);});
+  /* QR */
+  var qr=gel('qrDiv');
+  if(qr&&!qr.hasChildNodes()){
+    try{new QRCode(qr,{text:BTC_ADDR,width:130,height:130,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.H});}catch(e){}
+  }
+  gel('addrText').textContent=BTC_ADDR;
+}
+function updateBal(usd){
+  var btc=usd/BTC_PRICE;
+  gel('totalBal').textContent=fUSD(usd);
+  gel('btcBal').textContent='≈ '+btc.toFixed(8)+' BTC';
+  gel('coinBTCBal').textContent=fUSD(usd);
+  gel('coinBTCQty').textContent=btc.toFixed(5)+' BTC';
+}
+function copyBTCAddr(){
+  navigator.clipboard.writeText(BTC_ADDR).then(function(){toast('📋 Address copied!');}).catch(function(){toast('📋 Copied!');});
+}
+
+/* ══ SELL MODAL ══ */
+function openSell(){
+  getTPBalance(_sess.email,function(bal){
+    if(bal<=0){toast('No available balance to cash out.');return;}
+    if(bal<5000){
+      toast('Minimum withdrawal is $5,000. Your balance: '+fUSD(bal),'#f6465d');
+      /* Show info card instead */
+      gel('sellModal').classList.add('open');
+      gel('sellSub').textContent='Available: '+fUSD(bal);
+      gel('sellAmt').value='';
+      gel('prevBox').style.display='none';
+      gel('sellErr').textContent='⚠️ Minimum cashout is $5,000. Your current balance of '+fUSD(bal)+' does not meet the minimum. Keep trading to build your balance.';
+      gel('handleInput').value='';
+      gel('handleInput').disabled=true;
+      gel('sellAmt').disabled=true;
+      var mn=gel('methodNote');if(mn)mn.textContent='';
+      return;
+    }
+    gel('sellModal').classList.add('open');
+    gel('sellSub').textContent='Available: '+fUSD(bal)+' · Min: $5,000';
+    gel('sellAmt').value='';
+    gel('sellAmt').disabled=false;
+    gel('handleInput').disabled=false;
+    gel('prevBox').style.display='none';
+    gel('sellErr').textContent='';
+    gel('handleInput').value='';
+    if(gel('bybitEmail'))gel('bybitEmail').value='';
+    if(gel('bybitBTC'))gel('bybitBTC').value='';
+    if(gel('btcDestAddr'))gel('btcDestAddr').value='';
+    var mn=gel('methodNote');if(mn)mn.textContent='Worldwide · PayPal account required';
+    selMethod('paypal');
+  });
+}
+function closeSell(){gel('sellModal').classList.remove('open');}
+function selMethod(m){
+  _method=m;
+  ['paypal','cashapp','bybit','binance','bank','wise','btc'].forEach(function(x){
+    var el=gel('m_'+x);
+    if(el)el.className='method-btn'+(x===m?' active':'');
+  });
+  /* Show/hide field sections */
+  gel('singleField').style.display=(m==='bybit'||m==='btc')?'none':'block';
+  gel('bybitFields').style.display=m==='bybit'?'block':'none';
+  gel('btcFields').style.display=m==='btc'?'block':'none';
+  var configs={
+    paypal:  {label:'PayPal Email',          ph:'you@paypal.com',               note:'Worldwide · PayPal account required'},
+    cashapp: {label:'Cash App $Cashtag',     ph:'$YourCashTag',                 note:'US only · Instant transfer'},
+    bybit:   {label:'',                      ph:'',                             note:''},
+    binance: {label:'Binance UID or Email',  ph:'UID: 12345678 or email',       note:'Crypto transfer to your Binance account'},
+    bank:    {label:'Bank Account Details',  ph:'Bank name · Account No · Routing No', note:'Wire transfer · 1-3 business days'},
+    wise:    {label:'Wise Email or Account', ph:'you@email.com or @handle',     note:'International · Multi-currency'},
+    btc:     {label:'',                      ph:'',                             note:''}
+  };
+  var c=configs[m]||configs.paypal;
+  if(gel('handleLabel'))gel('handleLabel').textContent=c.label;
+  if(gel('handleInput'))gel('handleInput').placeholder=c.ph;
+  var noteEl=gel('methodNote');
+  if(noteEl)noteEl.textContent=c.note;
+}
+function calcPreview(){
+  var amt=parseFloat(gel('sellAmt').value)||0;
+  var pb=gel('prevBox');
+  var err=gel('sellErr');
+  if(amt<=0){pb.style.display='none';return;}
+  if(amt<5000){
+    pb.style.display='none';
+    err.textContent='Minimum cashout is $5,000.';
+    return;
+  }
+  err.textContent='';
+  var fee=amt*0.20; /* 20% processing fee */
+  var net=amt-fee;
+  var btc=amt/BTC_PRICE;
+  gel('pBTC').textContent=btc.toFixed(6)+' BTC';
+  gel('pFee').textContent='-'+fUSD(fee)+' (20%)';
+  gel('pNet').textContent=fUSD(net);
+  pb.style.display='block';
+}
+function submitCashout(){
+  var amt=parseFloat(gel('sellAmt').value)||0;
+  var err=gel('sellErr');err.textContent='';
+  if(amt<=0){err.textContent='Enter a valid amount.';return;}
+  if(amt<5000){err.textContent='Minimum cashout is $5,000.';return;}
+
+  /* Collect payout details based on method */
+  var handle='',extraDetails='';
+  if(_method==='bybit'){
+    var bEmail=(gel('bybitEmail').value||'').trim();
+    var bBTC=(gel('bybitBTC').value||'').trim();
+    if(!bEmail||bEmail.indexOf('@')<0){err.textContent='Enter your Bybit email address.';return;}
+    if(!bBTC||bBTC.length<26){err.textContent='Enter a valid Bybit BTC deposit address.';return;}
+    handle=bEmail;
+    extraDetails='BTC Address: '+bBTC;
+  }else if(_method==='btc'){
+    var btcAddr=(gel('btcDestAddr').value||'').trim();
+    if(!btcAddr||btcAddr.length<26){err.textContent='Enter a valid Bitcoin address.';return;}
+    if(!/^[13bc]/.test(btcAddr)){err.textContent='Bitcoin addresses start with 1, 3, or bc1.';return;}
+    handle=btcAddr;
+    extraDetails='Direct BTC transfer';
+  }else{
+    handle=(gel('handleInput').value||'').trim();
+    if(!handle){err.textContent='Enter your payout details.';return;}
+    if(_method==='paypal'&&handle.indexOf('@')<0){err.textContent='Enter a valid PayPal email.';return;}
+    if(_method==='cashapp'&&handle[0]!=='$')handle='$'+handle;
+  }
+
+  getTPBalance(_sess.email,function(bal){
+    if(amt>bal+0.01){err.textContent='Amount exceeds your balance of '+fUSD(bal)+'.';return;}
+    if(bal<5000){err.textContent='Minimum cashout is $5,000. Balance: '+fUSD(bal)+'.';return;}
+    var fee=amt*0.20;
+    var net=amt-fee;
+    var req={
+      id:'cv_'+Date.now(),
+      email:_sess.email,name:_sess.name,
+      amount:amt,fee:fee,net:net,
+      method:_method,handle:handle,
+      extraDetails:extraDetails||'',
+      btcAmt:(amt/BTC_PRICE).toFixed(8),
+      feeNote:'20% processing fee: '+fUSD(fee),
+      status:'pending',
+      date:new Date().toLocaleDateString(),
+      ts:Date.now()
+    };
+    var all=ls_load('cv_cashout_requests')||[];
+    all.push(req);
+    cvSave('cashout_requests',all);
+    var ureqs=ls_load('cv_cashout_'+_sess.email)||[];
+    ureqs.push(req);
+    cvSave('cashout_'+_sess.email,ureqs);
+    closeSell();
+    toast('✅ Cashout request submitted!');
+    loadHistory();
+    goScreen('history');
+  });
+}
+
+/* ══ HISTORY ══ */
+function loadHistory(){
+  if(!_sess||_isAdmin)return;
+  cvLoad('cashout_'+_sess.email,function(reqs){
+    var div=gel('histDiv');
+    if(!reqs||!reqs.length){
+      div.innerHTML='<div style="text-align:center;padding:40px 20px"><div style="font-size:2.5rem;margin-bottom:10px">📭</div><p style="color:var(--sub);font-size:0.83rem;line-height:1.7">No cashout requests yet.<br>Sell your crypto to get started.</p></div>';
+      return;
+    }
+    var html='';
+    reqs.slice().reverse().forEach(function(r){
+      var mi=methInfo(r.method).icon;
+      var mn=methInfo(r.method).name;
+      var sp=r.status==='paid'?'<span class="pill pill-paid">✅ Paid</span>':r.status==='rejected'?'<span class="pill pill-rejected">❌ Rejected</span>':'<span class="pill pill-pending">⏳ Pending</span>';
+      html+='<div class="card" style="margin-bottom:10px">';
+      html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-weight:700;font-size:0.9rem">'+mi+' '+mn+' Cashout</div><div style="font-size:0.7rem;color:var(--muted);margin-top:2px">'+r.date+'</div></div>'+sp+'</div>';
+      html+='<div style="background:var(--bg3);border-radius:9px;padding:10px;margin-bottom:8px">';
+      html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:0.78rem"><span style="color:var(--sub)">Sold</span><span style="font-weight:700">'+fUSD(r.amount)+'</span></div>';
+      html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:0.78rem"><span style="color:var(--sub)">Processing fee (20%)</span><span style="font-weight:700;color:var(--red)">-'+fUSD(r.fee)+'</span></div>';
+      html+='<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;font-size:0.85rem"><span style="color:var(--sub)">You receive</span><span style="font-weight:800;color:var(--green)">'+fUSD(r.net)+'</span></div>';
+      html+='</div>';
+      html+='<div style="font-size:0.75rem;color:var(--sub)">'+mi+' '+mn+': <strong style="color:var(--text)">'+r.handle+'</strong></div>';
+      if(r.extraDetails)html+='<div style="font-size:0.72rem;color:var(--sub);margin-top:4px;word-break:break-all;">₿ '+r.extraDetails+'</div>';
+      if(r.adminNote)html+='<div style="font-size:0.73rem;color:var(--sub);margin-top:8px;background:var(--bg3);border-radius:7px;padding:8px">📝 '+r.adminNote+'</div>';
+      html+='</div>';
+    });
+    div.innerHTML=html;
+  });
+}
+
+/* ══ ADMIN ══ */
+function loadAdmin(){
+  if(!_isAdmin)return;
+  cvLoad('cashout_requests',function(reqs){
+    _allReqs=reqs||[];
+    var p=_allReqs.filter(function(r){return r.status==='pending';}).length;
+    gel('pendBadge').textContent=p>0?p+' pending':'';
+    filterAdmin(_adminFilter);
+  });
+}
+function filterAdmin(f){
+  _adminFilter=f;
+  ['all','pending','paid','rejected'].forEach(function(x){
+    var t=gel('tab_'+x);if(!t)return;
+    var a=x===f;
+    t.style.borderBottom=a?'2px solid var(--gold)':'2px solid transparent';
+    t.style.color=a?'var(--gold)':'var(--muted)';
+  });
+  var list=f==='all'?_allReqs:_allReqs.filter(function(r){return r.status===f;});
+  renderAdmin(list);
+}
+function renderAdmin(reqs){
+  var div=gel('adminDiv');
+  if(!reqs||!reqs.length){div.innerHTML='<div style="text-align:center;padding:30px;color:var(--sub);font-size:0.85rem">No requests found.</div>';return;}
+  var html='';
+  reqs.slice().reverse().forEach(function(r){
+    var mi=methInfo(r.method).icon;
+    var mn=methInfo(r.method).name;
+    var sp=r.status==='paid'?'<span class="pill pill-paid">✅ Paid</span>':r.status==='rejected'?'<span class="pill pill-rejected">❌ Rejected</span>':'<span class="pill pill-pending">⏳ Pending</span>';
+    html+='<div class="admin-row">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px"><div><div style="font-weight:700;font-size:0.88rem">'+r.name+'</div><div style="font-size:0.7rem;color:var(--muted)">'+r.email+' · '+r.date+'</div></div>'+sp+'</div>';
+    html+='<div style="background:var(--bg3);border-radius:9px;padding:10px;margin-bottom:10px">';
+    html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:0.78rem"><span style="color:var(--sub)">Amount</span><span style="font-weight:800;color:var(--gold);font-size:0.9rem">'+fUSD(r.amount)+'</span></div>';
+    html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:0.78rem"><span style="color:var(--sub)">To send (after fee)</span><span style="font-weight:800;color:var(--green)">'+fUSD(r.net)+'</span></div>';
+    html+='<div style="display:flex;justify-content:space-between;font-size:0.78rem"><span style="color:var(--sub)">'+mn+'</span><span style="font-weight:700">'+mi+' '+r.handle+'</span></div>';
+    if(r.extraDetails)html+='<div style="font-size:0.75rem;color:var(--sub);margin-top:5px;word-break:break-all;">₿ '+r.extraDetails+'</div>';
+    html+='</div>';
+    html+='<button class="btn btn-ghost btn-sm" style="margin-bottom:8px" onclick="copyT(\''+r.handle+'\')">📋 Copy '+mn+' Details</button>';
+    if(r.status==='pending'){
+      html+='<input type="text" id="note_'+r.id+'" placeholder="Optional note to student..." style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:8px 11px;color:var(--text);font-family:\'Outfit\',sans-serif;font-size:0.78rem;outline:none;margin-bottom:8px">';
+      html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:7px">';
+      html+='<button class="btn btn-green" style="padding:9px;font-size:0.82rem" onclick="markStatus(\''+r.id+'\',\'paid\')">✅ Mark Paid</button>';
+      html+='<button class="btn btn-red" style="padding:9px;font-size:0.82rem" onclick="markStatus(\''+r.id+'\',\'rejected\')">❌ Reject</button>';
+      html+='</div>';
+    }
+    html+='</div>';
+  });
+  div.innerHTML=html;
+}
+function markStatus(id,status){
+  var noteEl=gel('note_'+id);
+  var note=noteEl?noteEl.value.trim():'';
+  for(var i=0;i<_allReqs.length;i++){
+    if(_allReqs[i].id===id){
+      _allReqs[i].status=status;
+      if(note)_allReqs[i].adminNote=note;
+      /* Update user's list too */
+      var ue=_allReqs[i].email;
+      cvLoad('cashout_'+ue,function(ureqs){
+        if(ureqs){
+          for(var j=0;j<ureqs.length;j++){if(ureqs[j].id===id){ureqs[j].status=status;if(note)ureqs[j].adminNote=note;}}
+          cvSave('cashout_'+ue,ureqs);
+        }
+      });
+      break;
+    }
+  }
+  cvSave('cashout_requests',_allReqs);
+  toast(status==='paid'?'✅ Marked as paid':'Request rejected');
+  filterAdmin(_adminFilter);
+}
+
+/* ══ UTILS ══ */
+function methInfo(m){
+  var map={
+    paypal:{icon:'💙',name:'PayPal'},
+    cashapp:{icon:'💚',name:'Cash App'},
+    bybit:{icon:'🟡',name:'Bybit'},
+    binance:{icon:'🟡',name:'Binance'},
+    bank:{icon:'🏦',name:'Bank Transfer'},
+    wise:{icon:'🟢',name:'Wise'},
+    btc:{icon:'₿',name:'BTC Transfer'}
+  };
+  return map[m]||{icon:'💳',name:m||'Payout'};
+}
+function fUSD(n){return '$'+(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function copyT(t){navigator.clipboard.writeText(t).then(function(){toast('📋 Copied!');}).catch(function(){toast('📋 Copied!');});}
+var _tt=null;
+function toast(msg){var t=gel('toast');t.textContent=msg;t.classList.add('show');if(_tt)clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},2800);}
+</script>
+
+</body>
+</html>
